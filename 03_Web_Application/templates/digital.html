@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>Kiểm thử truy cập tài liệu số (FR-08, FR-10 - Trigger BR08)</h2>
+    <form method="post" class="form-grid">
+        <input type="hidden" name="action" value="access">
+        <div>
+            <label>Mã thành viên (member_id) *</label>
+            {% if is_staff %}
+                <input type="text" id="d_member" name="member_id" required placeholder="VD: MEM0002">
+            {% else %}
+                <input type="text" id="d_member" name="member_id" value="{{ current_user.member_id }}" readonly style="background:#f1f5f9;">
+            {% endif %}
+        </div>
+        <div>
+            <label>Mã tài nguyên số (digital_id) *</label>
+            <input type="text" id="d_dig" name="digital_id" required placeholder="VD: DIG00005">
+        </div>
+        <div>
+            <label>Hành động *</label>
+            <select name="access_type">
+                <option value="VIEW">VIEW (Xem trực tuyến)</option>
+                <option value="DOWNLOAD">DOWNLOAD (Tải về)</option>
+            </select>
+        </div>
+        <div>
+            <button type="submit" class="btn-green">Mở / Ghi nhận truy cập</button>
+        </div>
+    </form>
+    {% if is_staff %}
+    <div class="hint">
+        <b>Nạp nhanh kịch bản kiểm thử Trigger BR08:</b>
+        <div class="preset-row">
+            <button type="button" class="btn-sm btn-outline" onclick="fillDig('MEM0002','DIG00005')">Test BR08 (Open mở PRIVATE - Chặn)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillDig('MEM0008','DIG00002')">Test BR08 (TK Revoked - Chặn)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillDig('MEM0033','DIG00005')">Test hợp lệ (MEM0033 quyền Private mở PRIVATE - OK)</button>
+        </div>
+    </div>
+    <script>
+    function fillDig(m, d) {
+        document.getElementById('d_member').value = m;
+        document.getElementById('d_dig').value = d;
+    }
+    </script>
+    {% endif %}
+</div>
+
+{% if is_staff %}
+<div class="card">
+    <h2>Thêm tài nguyên số mới (FR-08, FR-09 - CHECK BR09)</h2>
+    <form method="post" class="form-grid">
+        <input type="hidden" name="action" value="add_digital">
+        <div>
+            <label>Mã tài liệu gốc (document_id) *</label>
+            <input type="text" name="document_id" required value="DOC00001">
+        </div>
+        <div>
+            <label>Định dạng file</label>
+            <select name="file_format">
+                <option value="PDF">PDF</option>
+                <option value="EPUB">EPUB</option>
+                <option value="DOCX">DOCX</option>
+            </select>
+        </div>
+        <div>
+            <label>Kích thước (MB)</label>
+            <input type="number" step="0.1" name="size" value="5.5">
+        </div>
+        <div>
+            <label>Mức truy cập *</label>
+            <select name="access_level">
+                <option value="OPEN">OPEN (Bắt buộc có giấy phép)</option>
+                <option value="RESTRICTED">RESTRICTED</option>
+                <option value="PRIVATE">PRIVATE</option>
+            </select>
+        </div>
+        <div>
+            <label>Giấy phép Open Access</label>
+            <select name="license_id">
+                <option value="">-- Không chọn (Test lỗi BR09) --</option>
+                {% for lic in licenses %}
+                    <option value="{{ lic.license_id }}">{{ lic.license_id }} - {{ lic.license_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <button type="submit">Thêm tài nguyên số</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Danh sách tài nguyên số</h2>
+    <form method="get" class="row-flex" style="margin-bottom:10px;">
+        <div>
+            <label>Tìm kiếm</label>
+            <input type="text" name="q" value="{{ q_dig }}" placeholder="Mã DIG, DOC hoặc tiêu đề...">
+        </div>
+        <div>
+            <label>Mức truy cập</label>
+            <select name="level">
+                <option value="">-- Tất cả --</option>
+                <option value="OPEN" {{ 'selected' if level_filter == 'OPEN' else '' }}>OPEN</option>
+                <option value="RESTRICTED" {{ 'selected' if level_filter == 'RESTRICTED' else '' }}>RESTRICTED</option>
+                <option value="PRIVATE" {{ 'selected' if level_filter == 'PRIVATE' else '' }}>PRIVATE</option>
+            </select>
+        </div>
+        <div><button type="submit">Lọc</button></div>
+    </form>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã số</th>
+                    <th>Mã TL</th>
+                    <th>Tiêu đề</th>
+                    <th>Định dạng</th>
+                    <th>MB</th>
+                    <th>Mức truy cập</th>
+                    <th>Giấy phép</th>
+                    {% if is_staff %}<th>Đổi quyền / Giấy phép (BR09)</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in resources %}
+                <tr>
+                    <td><b>{{ r.digital_id }}</b></td>
+                    <td><a href="{{ url_for('document_detail', doc_id=r.document_id) }}" style="color:#1e3a5f;">{{ r.document_id }}</a></td>
+                    <td>{{ r.title }}</td>
+                    <td>{{ r.file_format }}</td>
+                    <td>{{ r.size or '-' }}</td>
+                    <td>
+                        {% if r.access_level == 'OPEN' %}
+                            <span class="badge b-green">OPEN</span>
+                        {% elif r.access_level == 'RESTRICTED' %}
+                            <span class="badge b-amber">RESTRICTED</span>
+                        {% else %}
+                            <span class="badge b-red">PRIVATE</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.license_name or '-' }}</td>
+                    {% if is_staff %}
+                    <td>
+                        <form method="post" class="row-flex" style="gap:4px;">
+                            <input type="hidden" name="action" value="update_digital">
+                            <input type="hidden" name="digital_id" value="{{ r.digital_id }}">
+                            <select name="access_level" style="width:110px; padding:3px 6px; font-size:12px;">
+                                {% for lv in ['OPEN', 'RESTRICTED', 'PRIVATE'] %}
+                                    <option value="{{ lv }}" {{ 'selected' if r.access_level == lv else '' }}>{{ lv }}</option>
+                                {% endfor %}
+                            </select>
+                            <select name="license_id" style="width:115px; padding:3px 6px; font-size:12px;">
+                                <option value="">Không GP</option>
+                                {% for lic in licenses %}
+                                    <option value="{{ lic.license_id }}" {{ 'selected' if r.license_id == lic.license_id else '' }}>{{ lic.license_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn-sm">Lưu</button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 8 if is_staff else 7 }}">Không tìm thấy tài nguyên số.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Lịch sử truy cập tài liệu số gần nhất (FR-10)</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã log</th>
+                    <th>Thành viên</th>
+                    <th>Quyền TK</th>
+                    <th>Tài liệu số</th>
+                    <th>Mức TL</th>
+                    <th>Loại</th>
+                    <th>Thời gian</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in access_logs %}
+                <tr>
+                    <td>{{ a.access_id }}</td>
+                    <td>{{ a.member_id }} - {{ a.member_name }}</td>
+                    <td>{{ a.permission_level or '-' }}</td>
+                    <td><b>{{ a.digital_id }}</b></td>
+                    <td>{{ a.access_level }}</td>
+                    <td><span class="badge b-blue">{{ a.access_type }}</span></td>
+                    <td>{{ a.access_time }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">Chưa có lịch sử truy cập nào.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

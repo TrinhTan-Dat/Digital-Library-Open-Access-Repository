@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thư Viện Số PTIT - INT1313</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: "Segoe UI", Arial, sans-serif; background: #f1f5f9; color: #1e293b; line-height: 1.5; }
+        header { background: #1e3a5f; color: #fff; padding: 12px 22px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+        header h1 { font-size: 17px; font-weight: 600; letter-spacing: 0.2px; }
+        nav { display: flex; gap: 6px; flex-wrap: wrap; }
+        nav a { color: #cbd5e1; text-decoration: none; padding: 7px 12px; border-radius: 6px; font-size: 13.5px; font-weight: 500; transition: background 0.15s; }
+        nav a:hover, nav a.active { background: #2d5488; color: #fff; }
+        .role-bar { background: #0f2540; color: #e2e8f0; padding: 7px 22px; font-size: 12.5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .role-bar .role-links { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .role-chip { color: #cbd5e1; text-decoration: none; padding: 3px 9px; border-radius: 4px; border: 1px solid #33557a; font-size: 12px; }
+        .role-chip:hover { background: #24476e; color: #fff; }
+        .role-chip.current { background: #2563eb; border-color: #3b82f6; color: #fff; font-weight: 600; }
+        .container { max-width: 1240px; margin: 18px auto; padding: 0 16px 48px; }
+        .card { background: #fff; border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; box-shadow: 0 1px 4px rgba(15,23,42,0.07); }
+        .card h2 { font-size: 15.5px; color: #1e3a5f; margin-bottom: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 18px; }
+        .stat-box { background: #fff; border-left: 4px solid #1e3a5f; border-radius: 6px; padding: 13px 15px; box-shadow: 0 1px 4px rgba(15,23,42,0.07); }
+        .stat-box .label { font-size: 12.5px; color: #64748b; }
+        .stat-box .value { font-size: 23px; font-weight: 700; color: #0f172a; margin-top: 3px; }
+        .alert { padding: 11px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 13.5px; font-weight: 500; }
+        .alert-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+        .alert-danger { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 11px; align-items: end; }
+        label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; color: #334155; }
+        input, select { width: 100%; padding: 7.5px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13.5px; background: #fff; }
+        input:focus, select:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+        button, .btn { background: #1e3a5f; color: #fff; border: none; padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13.5px; text-decoration: none; display: inline-block; font-weight: 500; }
+        button:hover, .btn:hover { background: #162c49; }
+        .btn-sm { padding: 4px 9px; font-size: 12px; }
+        .btn-green { background: #15803d; }
+        .btn-green:hover { background: #166534; }
+        .btn-amber { background: #b45309; }
+        .btn-amber:hover { background: #92400e; }
+        .btn-red { background: #b91c1c; }
+        .btn-red:hover { background: #991b1b; }
+        .btn-gray { background: #64748b; }
+        .btn-gray:hover { background: #475569; }
+        .btn-outline { background: #fff; color: #1e3a5f; border: 1px solid #94a3b8; }
+        .btn-outline:hover { background: #e2e8f0; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+        th, td { padding: 8.5px 10px; text-align: left; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        th { background: #f8fafc; font-weight: 600; color: #334155; white-space: nowrap; }
+        tr:hover { background: #f8fafc; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+        .b-green { background: #dcfce7; color: #166534; }
+        .b-red { background: #fee2e2; color: #991b1b; }
+        .b-amber { background: #fef3c7; color: #92400e; }
+        .b-blue { background: #dbeafe; color: #1e40af; }
+        .b-purple { background: #f3e8ff; color: #6b21a8; }
+        .hint { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; padding: 10px 12px; border-radius: 6px; font-size: 12.5px; margin-top: 12px; }
+        .preset-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .row-flex { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+        .meta { font-size: 12.5px; color: #64748b; margin-top: 8px; }
+        code { background: #e2e8f0; padding: 1px 5px; border-radius: 4px; font-size: 12px; font-family: Consolas, monospace; }
+        pre { background: #0f172a; color: #e2e8f0; padding: 12px 14px; border-radius: 6px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; margin-top: 8px; font-family: Consolas, monospace; }
+        details summary { cursor: pointer; font-weight: 600; color: #1e3a5f; font-size: 13px; }
+        .two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 18px; }
+        .q-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+        .q-pill { padding: 5px 11px; border-radius: 6px; text-decoration: none; font-size: 12.5px; font-weight: 600; background: #e2e8f0; color: #334155; }
+        .q-pill:hover { background: #cbd5e1; }
+        .q-pill.active { background: #1e3a5f; color: #fff; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Thư Viện Số &amp; Kho Truy Cập Mở (PTIT - INT1313)</h1>
+        <nav>
+            <a href="{{ url_for('index') }}" class="{{ 'active' if request.endpoint in ('index', 'document_detail') else '' }}">Tài liệu</a>
+            <a href="{{ url_for('loans') }}" class="{{ 'active' if request.endpoint == 'loans' else '' }}">Mượn / Trả</a>
+            <a href="{{ url_for('fines') }}" class="{{ 'active' if request.endpoint == 'fines' else '' }}">Tiền phạt</a>
+            <a href="{{ url_for('digital') }}" class="{{ 'active' if request.endpoint == 'digital' else '' }}">Tài nguyên số</a>
+            <a href="{{ url_for('people') }}" class="{{ 'active' if request.endpoint == 'people' else '' }}">Thành viên &amp; Tác giả</a>
+            <a href="{{ url_for('reports') }}" class="{{ 'active' if request.endpoint == 'reports' else '' }}">15 Báo cáo SQL</a>
+        </nav>
+    </header>
+    <div class="role-bar">
+        <div>
+            Phiên hiện tại: <b>{{ current_user.name }}</b> (<code>{{ current_user.member_id }}</code>)
+            &nbsp;|&nbsp; Vai trò: <span class="badge b-blue">{{ role_labels.get(current_user.role, current_user.role) }}</span>
+            &nbsp;|&nbsp; Quyền số: <span class="badge b-purple">{{ current_user.permission_level }}</span>
+        </div>
+        <div class="role-links">
+            <span>Demo phân quyền (NFR-03):</span>
+            {% for rcode, rlabel in [('Administrator', 'Admin'), ('Library staff', 'Thủ thư'), ('Faculty', 'Giảng viên'), ('Student', 'Sinh viên')] %}
+                <a href="{{ url_for('switch_role', role_name=rcode) }}" class="role-chip {{ 'current' if current_user.role == rcode else '' }}">{{ rlabel }}</a>
+            {% endfor %}
+            <a href="{{ url_for('login') }}" class="role-chip" style="background:#334155; color:#fff;">Đăng nhập</a>
+        </div>
+    </div>
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for cat, msg in messages %}
+                <div class="alert alert-{{ cat }}">{{ msg }}</div>
+            {% endfor %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

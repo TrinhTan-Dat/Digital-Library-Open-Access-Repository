@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+    <h2>Bộ 15 Truy vấn SQL Phức tạp (Phase 3 - Chọn truy vấn để chạy trực tiếp trên MySQL)</h2>
+    <div class="q-pills">
+        {% for qid, meta in queries.items() %}
+            <a href="{{ url_for('reports', q=qid, member_id=q15_member) }}" class="q-pill {{ 'active' if selected_q == qid else '' }}" title="{{ meta.title }}">
+                {{ qid }}
+            </a>
+        {% endfor %}
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+        <div>
+            <h3 style="font-size:15px; color:#0f172a;">{{ q_meta.title }}</h3>
+            <span class="badge b-purple" style="margin-top:4px;">Kỹ thuật SQL: {{ q_meta.tag }}</span>
+            <span class="badge {{ 'b-green' if exec_ms < 200 else 'b-amber' }}" style="margin-left:4px;">Thời gian chạy: {{ exec_ms }} ms</span>
+            <span class="badge b-blue" style="margin-left:4px;">{{ rows|length }} dòng kết quả</span>
+        </div>
+
+        {% if q_meta.get('has_member_param') %}
+        <form method="get" class="row-flex">
+            <input type="hidden" name="q" value="Q15">
+            <div>
+                <label>Mã thành viên (Q15)</label>
+                <input type="text" name="member_id" value="{{ q15_member }}" style="width:140px;">
+            </div>
+            <div><button type="submit">Chạy Q15</button></div>
+        </form>
+        {% endif %}
+    </div>
+
+    <details>
+        <summary>Xem mã nguồn SQL của {{ selected_q }} (Dùng khi bảo vệ vấn đáp)</summary>
+        <pre>{{ q_meta.sql }}</pre>
+    </details>
+
+    <div class="table-wrap" style="margin-top:12px;">
+        <table>
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                        <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr>
+                    {% for col in columns %}
+                        <td>{{ r[col] if r[col] is not none else '-' }}</td>
+                    {% endfor %}
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ columns|length if columns else 1 }}">Truy vấn không trả về dòng nào.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

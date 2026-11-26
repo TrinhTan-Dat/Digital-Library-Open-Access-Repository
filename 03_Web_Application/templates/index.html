@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="label">Tổng số đầu tài liệu</div>
+        <div class="value">{{ stats.total_docs }}</div>
+    </div>
+    <div class="stat-box" style="border-color:#15803d;">
+        <div class="label">Bản sao vật lý sẵn sàng</div>
+        <div class="value">{{ stats.avail_copies }}</div>
+    </div>
+    <div class="stat-box" style="border-color:#b45309;">
+        <div class="label">Phiếu đang mượn / quá hạn</div>
+        <div class="value">{{ stats.active_loans }}</div>
+    </div>
+    <div class="stat-box" style="border-color:#b91c1c;">
+        <div class="label">Khoản phạt chưa thanh toán</div>
+        <div class="value">{{ stats.unpaid_fines }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Tra cứu danh mục tài liệu (FR-11 - View v_document_catalog)</h2>
+    <form method="get" class="form-grid">
+        <div>
+            <label>Từ khóa (Tiêu đề / Tác giả / ISBN / Mã)</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="VD: dữ liệu, Python, DOC00001...">
+        </div>
+        <div>
+            <label>Chủ đề / Thể loại</label>
+            <select name="category">
+                <option value="">-- Tất cả thể loại --</option>
+                {% for c in categories %}
+                    <option value="{{ c.category_id }}" {{ 'selected' if cat_filter == c.category_id else '' }}>{{ c.cate_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Loại tài liệu</label>
+            <select name="type">
+                <option value="">-- Tất cả --</option>
+                {% for t in ['BOOK', 'JOURNAL', 'THESIS', 'PROJECT', 'RESEARCH_PAPER', 'OTHER'] %}
+                    <option value="{{ t }}" {{ 'selected' if doc_type == t else '' }}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Năm xuất bản</label>
+            <input type="number" name="year" value="{{ pub_year_filter }}" placeholder="VD: 2025">
+        </div>
+        <div>
+            <label>Bản sao &amp; Sắp xếp</label>
+            <select name="avail">
+                <option value="">Tất cả bản sao</option>
+                <option value="1" {{ 'selected' if only_avail == '1' else '' }}>Chỉ còn bản sao Available</option>
+            </select>
+        </div>
+        <div>
+            <label>Thứ tự hiển thị</label>
+            <select name="sort">
+                <option value="asc" {{ 'selected' if sort_dir == 'asc' else '' }}>Mã tăng dần (DOC00001...)</option>
+                <option value="desc" {{ 'selected' if sort_dir == 'desc' else '' }}>Mới nhất trước</option>
+            </select>
+        </div>
+        <div class="row-flex">
+            <button type="submit">Tìm kiếm</button>
+            <a href="{{ url_for('index') }}" class="btn btn-gray">Đặt lại</a>
+        </div>
+    </form>
+    <div class="meta">
+        Hiển thị tối đa 50 kết quả | Thời gian truy vấn MySQL:
+        <span class="badge {{ 'b-green' if query_ms < 200 else 'b-amber' }}">{{ query_ms }} ms</span>
+        (Mục tiêu NFR-01 &lt; 200 ms)
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã TL</th>
+                    <th>Tiêu đề</th>
+                    <th>Năm XB</th>
+                    <th>Loại</th>
+                    <th>Tác giả</th>
+                    <th>Thể loại</th>
+                    <th>Bản sao sẵn sàng</th>
+                    <th>Bản số</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in docs %}
+                <tr>
+                    <td><b>{{ d.document_id }}</b></td>
+                    <td>{{ d.title }}</td>
+                    <td>{{ d.publication_year }}</td>
+                    <td><span class="badge b-blue">{{ d.type }}</span></td>
+                    <td>{{ d.authors or '-' }}</td>
+                    <td>{{ d.categories or '-' }}</td>
+                    <td>
+                        {% if d.available_copies > 0 %}
+                            <span class="badge b-green">{{ d.available_copies }} / {{ d.total_copies }}</span>
+                        {% else %}
+                            <span class="badge b-red">{{ d.available_copies }} / {{ d.total_copies }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ d.digital_versions }}</td>
+                    <td>
+                        <a href="{{ url_for('document_detail', doc_id=d.document_id) }}" class="btn btn-sm">Chi tiết / Sửa</a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">Không tìm thấy tài liệu phù hợp.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_faculty_plus %}
+<div class="card">
+    <h2>Thêm tài liệu mới (FR-01, FR-02, FR-12 - Trigger năm xuất bản)</h2>
+    <form method="post" class="form-grid">
+        <input type="hidden" name="action" value="add_doc">
+        <div>
+            <label>Tiêu đề *</label>
+            <input type="text" name="title" required placeholder="Nhập tên tài liệu">
+        </div>
+        <div>
+            <label>Năm xuất bản *</label>
+            <input type="number" name="publication_year" required value="2026">
+        </div>
+        <div>
+            <label>ISBN</label>
+            <input type="text" name="isbn" placeholder="VD: 978604999999">
+        </div>
+        <div>
+            <label>Ngôn ngữ</label>
+            <input type="text" name="language" value="Vietnamese">
+        </div>
+        <div>
+            <label>Loại tài liệu *</label>
+            <select name="type">
+                <option value="BOOK">BOOK</option>
+                <option value="JOURNAL">JOURNAL</option>
+                <option value="THESIS">THESIS</option>
+                <option value="PROJECT">PROJECT</option>
+                <option value="RESEARCH_PAPER">RESEARCH_PAPER</option>
+                <option value="OTHER">OTHER</option>
+            </select>
+        </div>
+        <div>
+            <label>Nhà xuất bản</label>
+            <select name="publisher_id">
+                <option value="">-- Không chọn --</option>
+                {% for p in publishers %}
+                    <option value="{{ p.publisher_id }}">{{ p.publisher_id }} - {{ p.pub_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Nhân viên quản lý *</label>
+            <select name="employee_code" required>
+                {% for s in staffs %}
+                    <option value="{{ s.employee_code }}">{{ s.employee_code }} - {{ s.position }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Tác giả chính (tùy chọn)</label>
+            <input type="text" name="author_id" list="authors_list" placeholder="VD: AUT0001">
+            <datalist id="authors_list">
+                {% for a in authors_sample %}
+                    <option value="{{ a.author_id }}">{{ a.author_name }}</option>
+                {% endfor %}
+            </datalist>
+        </div>
+        <div>
+            <label>Thể loại chính (tùy chọn)</label>
+            <select name="category_id">
+                <option value="">-- Không chọn --</option>
+                {% for c in categories %}
+                    <option value="{{ c.category_id }}">{{ c.cate_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Số bản sao vật lý nhập kho</label>
+            <input type="number" name="init_copies" min="0" max="50" value="2">
+        </div>
+        <div>
+            <label>Mô tả ngắn</label>
+            <input type="text" name="description" placeholder="Tóm tắt nội dung">
+        </div>
+        <div>
+            <button type="submit" class="btn-green">Thêm tài liệu</button>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% if is_staff %}
+<div class="two-col">
+    <div class="card">
+        <h2>Nhập thêm bản sao vật lý nhanh (FR-02)</h2>
+        <form method="post" class="form-grid">
+            <input type="hidden" name="action" value="add_copy">
+            <div>
+                <label>Mã tài liệu (document_id) *</label>
+                <input type="text" name="document_id" required placeholder="VD: DOC00001">
+            </div>
+            <div>
+                <label>Số lượng thêm *</label>
+                <input type="number" name="quantity" required min="1" max="50" value="2">
+            </div>
+            <div>
+                <label>Tình trạng sách</label>
+                <input type="text" name="condition" value="Mới">
+            </div>
+            <div>
+                <button type="submit" class="btn-green">Thêm bản sao</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>Cập nhật nhanh trạng thái bản sao (FR-02)</h2>
+        <form method="post" class="form-grid">
+            <input type="hidden" name="action" value="update_copy">
+            <div>
+                <label>Mã bản sao (copy_id) *</label>
+                <input type="text" name="copy_id" required placeholder="VD: COP00001">
+            </div>
+            <div>
+                <label>Trạng thái mới *</label>
+                <select name="status">
+                    <option value="Available">Available</option>
+                    <option value="Borrowed">Borrowed</option>
+                    <option value="Lost">Lost</option>
+                    <option value="Damaged">Damaged</option>
+                    <option value="Maintenance">Maintenance</option>
+                </select>
+            </div>
+            <div>
+                <label>Tình trạng sách</label>
+                <input type="text" name="condition" placeholder="VD: Bìa cũ, Bảo trì...">
+            </div>
+            <div>
+                <button type="submit">Cập nhật</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="hint">
+    <b>Phân quyền hiện tại ({{ role_labels.get(current_user.role, current_user.role) }} - NFR-03):</b>
+    Các chức năng quản trị kho bản sao và sửa/xóa dữ liệu hệ thống đang bị ẩn và khóa ở tầng backend. Chuyển sang vai trò <b>Thủ thư</b> hoặc <b>Admin</b> ở thanh trên cùng để thao tác đầy đủ.
+</div>
+{% endif %}
+{% endblock %}

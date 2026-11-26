@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-box">
+        <div class="label">Tổng cá nhân (person)</div>
+        <div class="value">{{ eer_stats.total_person }}</div>
+    </div>
+    <div class="stat-box" style="border-color:#2563eb;">
+        <div class="label">Thành viên trường (Disjoint: {{ eer_stats.total_student }} SV, {{ eer_stats.total_faculty }} GV, {{ eer_stats.total_staff }} NV, {{ eer_stats.total_admin }} AD)</div>
+        <div class="value">{{ eer_stats.total_member }}</div>
+    </div>
+    <div class="stat-box" style="border-color:#7c3aed;">
+        <div class="label">Chồng chéo (Vừa Thành viên vừa Tác giả - BR14)</div>
+        <div class="value">{{ eer_stats.overlapping_count }}</div>
+    </div>
+    <div class="stat-box" style="border-color:#b45309;">
+        <div class="label">Tổng tác giả ({{ eer_stats.external_author_count }} ngoài trường)</div>
+        <div class="value">{{ eer_stats.total_author }}</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Minh chứng mô hình EER Chồng chéo (Overlapping - BR14: Thành viên đồng thời là Tác giả)</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã Person</th>
+                    <th>Họ tên thật</th>
+                    <th>Mã Thành viên</th>
+                    <th>Vai trò trường</th>
+                    <th>Mã Tác giả</th>
+                    <th>Bút danh xuất bản</th>
+                    <th>Số tác phẩm</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in overlapping_rows %}
+                <tr>
+                    <td><code>{{ o.person_id }}</code></td>
+                    <td><b>{{ o.real_name }}</b></td>
+                    <td>{{ o.member_id }}</td>
+                    <td><span class="badge b-blue">{{ o.member_role }}</span></td>
+                    <td>{{ o.author_id }}</td>
+                    <td><span class="badge b-purple">{{ o.author_name }}</span></td>
+                    <td><b>{{ o.authored_docs }}</b></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_faculty_plus %}
+<div class="two-col">
+    {% if is_staff %}
+    <div class="card">
+        <h2>Thêm cá nhân mới (Bảng person - Kiểm tra Trigger ngày sinh &amp; CHECK SĐT)</h2>
+        <form method="post" class="form-grid">
+            <input type="hidden" name="action" value="add_person">
+            <div>
+                <label>Họ và tên *</label>
+                <input type="text" name="name" required placeholder="Nguyễn Văn A">
+            </div>
+            <div>
+                <label>Ngày sinh (&lt;= hôm nay)</label>
+                <input type="date" name="birth">
+            </div>
+            <div>
+                <label>Email (UNIQUE)</label>
+                <input type="email" name="email" placeholder="example@ptit.edu.vn">
+            </div>
+            <div>
+                <label>Số điện thoại (đủ 10 số)</label>
+                <input type="text" name="phone" placeholder="0912345678">
+            </div>
+            <div>
+                <label>Địa chỉ</label>
+                <input type="text" name="address" placeholder="Thủ Đức, TP.HCM">
+            </div>
+            <div>
+                <button type="submit" class="btn-green">Thêm cá nhân</button>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h2>Thêm tác giả mới (FR-12, BR14)</h2>
+        <form method="post" class="form-grid">
+            <input type="hidden" name="action" value="add_author">
+            <div>
+                <label>Tên tác giả / Bút danh *</label>
+                <input type="text" name="author_name" required placeholder="Tên in trên sách">
+            </div>
+            <div>
+                <label>Mã Person (Để trống nếu ngoài trường)</label>
+                <input type="text" name="person_id" placeholder="VD: PER0301 (Chồng chéo)">
+            </div>
+            <div>
+                <button type="submit" class="btn-green">Thêm tác giả</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Quản lý Thành viên &amp; Tài khoản (View v_member_role + Bảng user_account)</h2>
+    <form method="get" class="row-flex" style="margin-bottom:10px;">
+        <div>
+            <label>Tìm kiếm</label>
+            <input type="text" name="q" value="{{ q_people }}" placeholder="Mã MEM, PER, họ tên, username...">
+        </div>
+        <div>
+            <label>Vai trò</label>
+            <select name="role">
+                <option value="">-- Tất cả vai trò --</option>
+                {% for r in ['Administrator', 'Library staff', 'Faculty', 'Student'] %}
+                    <option value="{{ r }}" {{ 'selected' if role_filter == r else '' }}>{{ role_labels.get(r, r) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div><button type="submit">Lọc</button></div>
+    </form>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã TV</th>
+                    <th>Họ tên</th>
+                    <th>Vai trò</th>
+                    <th>Đang mượn</th>
+                    <th>Thẻ TV</th>
+                    <th>Tài khoản</th>
+                    <th>Quyền số</th>
+                    <th>TT Tài khoản</th>
+                    {% if is_admin %}<th>Quản trị (Admin)</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in members %}
+                <tr>
+                    <td>
+                        <b>{{ m.member_id }}</b>
+                        {% if m.is_author > 0 %}<span class="badge b-purple" title="Thực thể chồng chéo BR14">Tác giả</span>{% endif %}
+                    </td>
+                    <td>{{ m.name }}</td>
+                    <td><span class="badge b-blue">{{ m.member_role }}</span></td>
+                    <td>{{ m.active_loans }}</td>
+                    <td>
+                        <span class="badge {{ 'b-green' if m.status == 'Active' else ('b-red' if m.status == 'Suspended' else 'b-amber') }}">{{ m.status }}</span>
+                    </td>
+                    <td><code>{{ m.username or '-' }}</code></td>
+                    <td>{{ m.permission_level or '-' }}</td>
+                    <td>
+                        {% if m.account_status == 'Active' %}
+                            <span class="badge b-green">Active</span>
+                        {% elif m.account_status %}
+                            <span class="badge b-red">{{ m.account_status }}</span>
+                        {% else %}-{% endif %}
+                    </td>
+                    {% if is_admin %}
+                    <td>
+                        <form method="post" class="row-flex" style="gap:4px;">
+                            <input type="hidden" name="action" value="update_member_account">
+                            <input type="hidden" name="member_id" value="{{ m.member_id }}">
+                            <select name="member_status" style="width:98px; padding:3px 5px; font-size:12px;">
+                                {% for st in ['Active', 'Inactive', 'Suspended', 'Graduated'] %}
+                                    <option value="{{ st }}" {{ 'selected' if m.status == st else '' }}>{{ st }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if m.username %}
+                            <select name="permission_level" style="width:92px; padding:3px 5px; font-size:12px;">
+                                {% for pl in ['Open', 'Restricted', 'Private'] %}
+                                    <option value="{{ pl }}" {{ 'selected' if m.permission_level == pl else '' }}>{{ pl }}</option>
+                                {% endfor %}
+                            </select>
+                            <select name="account_status" style="width:82px; padding:3px 5px; font-size:12px;">
+                                {% for ast in ['Active', 'Revoked'] %}
+                                    <option value="{{ ast }}" {{ 'selected' if m.account_status == ast else '' }}>{{ ast }}</option>
+                                {% endfor %}
+                            </select>
+                            {% endif %}
+                            <button type="submit" class="btn-sm">Lưu</button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 9 if is_admin else 8 }}">Không tìm thấy thành viên.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

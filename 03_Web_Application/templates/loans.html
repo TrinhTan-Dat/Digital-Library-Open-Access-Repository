@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block content %}
+{% if is_staff %}
+<div class="card">
+    <h2>Tạo phiếu mượn sách vật lý (FR-03, FR-04 - Kích hoạt Trigger BR01–BR07, BR15)</h2>
+    <form method="post" class="form-grid" id="borrowForm">
+        <input type="hidden" name="action" value="borrow">
+        <div>
+            <label>Mã thành viên (member_id) *</label>
+            <input type="text" id="b_member" name="member_id" required placeholder="VD: MEM0004">
+        </div>
+        <div>
+            <label>Mã bản sao (copy_id) *</label>
+            <input type="text" id="b_copy" name="copy_id" required value="{{ prefill_copy }}" placeholder="VD: COP00001">
+        </div>
+        <div>
+            <label>Thủ thư xử lý (staff_id) *</label>
+            <select name="staff_id" required>
+                {% for s in staff_list %}
+                    <option value="{{ s.member_id }}">{{ s.member_id }} - {{ s.name }} ({{ s.employee_code }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Ngày mượn *</label>
+            <input type="date" id="b_borrow" name="borrow_date" required value="{{ today_str }}">
+        </div>
+        <div>
+            <label>Ngày đến hạn *</label>
+            <input type="date" id="b_due" name="due_date" required value="{{ default_due }}">
+        </div>
+        <div>
+            <button type="submit" class="btn-green">Tạo phiếu mượn</button>
+        </div>
+    </form>
+    <div class="hint">
+        <b>Bấm nhanh để nạp kịch bản kiểm thử Trigger / CHECK khi demo:</b>
+        <div class="preset-row">
+            <button type="button" class="btn-sm btn-outline" onclick="fillBorrow('MEM0006','COP00001','{{ today_str }}','{{ default_due }}')">Test BR02 (Đang quá hạn)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillBorrow('MEM0069','COP00001','{{ today_str }}','{{ default_due }}')">Test Suspended</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillBorrow('MEM0004','COP00030','{{ today_str }}','{{ default_due }}')">Test BR06/07 (Sách Lost)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillBorrow('MEM0004','COP00002','{{ today_str }}','{{ default_due }}')">Test BR03/15 (Đang mượn)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillBorrow('MEM0004','COP00001','{{ today_str }}','{{ today_str }}')">Test BR05 (Hạn &lt;= Mượn)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillBorrow('MEM0084','COP00004','{{ today_str }}','{{ default_due }}')">Test BR01 (Cuốn thứ 5 - OK)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillBorrow('MEM0084','COP00005','{{ today_str }}','{{ default_due }}')">Test BR01 (Cuốn thứ 6 - Chặn)</button>
+        </div>
+    </div>
+</div>
+<script>
+function fillBorrow(m, c, bd, dd) {
+    document.getElementById('b_member').value = m;
+    document.getElementById('b_copy').value = c;
+    document.getElementById('b_borrow').value = bd;
+    document.getElementById('b_due').value = dd;
+}
+</script>
+{% else %}
+<div class="hint" style="margin-bottom:16px;">
+    Bạn đang xem <b>lịch sử mượn trả cá nhân</b> của <code>{{ current_user.member_id }}</code> ({{ current_user.name }}). Chỉ Nhân viên thư viện / Quản trị viên được tạo phiếu mượn hoặc xác nhận trả sách (NFR-03).
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Danh sách phiếu mượn &amp; Trả sách (FR-05, FR-06 - Stored Procedure sp_return_loan)</h2>
+    <div class="row-flex" style="justify-content: space-between; margin-bottom: 10px;">
+        <form method="get" class="row-flex">
+            <div>
+                <label>Trạng thái</label>
+                <select name="status">
+                    <option value="OPEN" {{ 'selected' if status_filter == 'OPEN' else '' }}>Đang mượn + Quá hạn</option>
+                    <option value="ACTIVE" {{ 'selected' if status_filter == 'ACTIVE' else '' }}>ACTIVE</option>
+                    <option value="OVERDUE" {{ 'selected' if status_filter == 'OVERDUE' else '' }}>OVERDUE</option>
+                    <option value="RETURNED" {{ 'selected' if status_filter == 'RETURNED' else '' }}>RETURNED</option>
+                    <option value="LOST" {{ 'selected' if status_filter == 'LOST' else '' }}>LOST</option>
+                    <option value="ALL" {{ 'selected' if status_filter == 'ALL' else '' }}>Tất cả</option>
+                </select>
+            </div>
+            {% if not restricted_self %}
+            <div>
+                <label>Lọc mã phiếu / TV / bản sao</label>
+                <input type="text" name="member" value="{{ member_filter }}" placeholder="VD: LOA00002, MEM0084">
+            </div>
+            {% endif %}
+            <div><button type="submit">Lọc</button></div>
+        </form>
+        {% if is_staff %}
+        <form method="post">
+            <input type="hidden" name="action" value="mark_overdue">
+            <button type="submit" class="btn-amber">Cập nhật quá hạn (sp_mark_overdue_loans)</button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã phiếu</th>
+                    <th>Thành viên</th>
+                    <th>Bản sao</th>
+                    <th>Tài liệu</th>
+                    <th>Ngày mượn</th>
+                    <th>Hạn trả</th>
+                    <th>Ngày trả</th>
+                    <th>Trạng thái</th>
+                    {% if is_staff %}<th>Thao tác</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in loan_rows %}
+                <tr>
+                    <td><b>{{ r.loan_id }}</b></td>
+                    <td>{{ r.member_id }} - {{ r.member_name }}</td>
+                    <td>{{ r.copy_id }}</td>
+                    <td><a href="{{ url_for('document_detail', doc_id=r.document_id) }}" style="color:#1e3a5f; text-decoration:none;">{{ r.title }}</a></td>
+                    <td>{{ r.borrow_date }}</td>
+                    <td>{{ r.due_date }}</td>
+                    <td>{{ r.return_date or '-' }}</td>
+                    <td>
+                        {% if r.status == 'ACTIVE' %}
+                            <span class="badge b-blue">ACTIVE</span>
+                        {% elif r.status == 'OVERDUE' %}
+                            <span class="badge b-red">OVERDUE</span>
+                        {% elif r.status == 'RETURNED' %}
+                            <span class="badge b-green">RETURNED</span>
+                        {% else %}
+                            <span class="badge b-amber">{{ r.status }}</span>
+                        {% endif %}
+                    </td>
+                    {% if is_staff %}
+                    <td style="white-space:nowrap;">
+                        {% if r.status in ('ACTIVE', 'OVERDUE') %}
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="action" value="return">
+                            <input type="hidden" name="loan_id" value="{{ r.loan_id }}">
+                            <button type="submit" class="btn-sm btn-green">Trả sách</button>
+                        </form>
+                        <form method="post" style="display:inline;" onsubmit="return confirm('Báo mất cuốn {{ r.copy_id }} của phiếu {{ r.loan_id }}?');">
+                            <input type="hidden" name="action" value="mark_lost">
+                            <input type="hidden" name="loan_id" value="{{ r.loan_id }}">
+                            <button type="submit" class="btn-sm btn-red">Báo mất</button>
+                        </form>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 9 if is_staff else 8 }}">Không có phiếu mượn nào.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if is_staff %}
+<div class="card">
+    <h2>Trả sách theo ngày tùy chọn (Test BR04 ngày trả &lt; ngày mượn &amp; BR10 tự sinh phạt 5.000đ/ngày)</h2>
+    <form method="post" class="form-grid">
+        <input type="hidden" name="action" value="return">
+        <div>
+            <label>Mã phiếu mượn (loan_id) *</label>
+            <input type="text" id="r_loan" name="loan_id" required placeholder="VD: LOA00023">
+        </div>
+        <div>
+            <label>Ngày trả (Để trống = Hôm nay)</label>
+            <input type="date" id="r_date" name="return_date" value="{{ today_str }}">
+        </div>
+        <div>
+            <button type="submit" class="btn-amber">Gọi sp_return_loan()</button>
+        </div>
+    </form>
+    <div class="hint">
+        <b>Nạp nhanh kịch bản kiểm thử BR04 &amp; BR10 (dùng phiếu <code>LOA00023</code>: mượn 16/11, hạn 30/11, chưa có phạt):</b>
+        <div class="preset-row">
+            <button type="button" class="btn-sm btn-outline" onclick="fillReturn('LOA00023','2026-11-01')">Test BR04 (Trả trước ngày mượn - Chặn)</button>
+            <button type="button" class="btn-sm btn-outline" onclick="fillReturn('LOA00023','2026-12-05')">Test BR10 (Trả trễ 5 ngày &rarr; Tự sinh phạt 25.000đ)</button>
+        </div>
+    </div>
+</div>
+<script>
+function fillReturn(lid, rd) {
+    document.getElementById('r_loan').value = lid;
+    document.getElementById('r_date').value = rd;
+}
+</script>
+{% endif %}
+
+<div class="card">
+    <h2>Top 15 phiếu quá hạn lâu nhất (View v_overdue_loans)</h2>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã phiếu</th>
+                    <th>Thành viên</th>
+                    <th>Bản sao</th>
+                    <th>Tài liệu</th>
+                    <th>Hạn trả</th>
+                    <th>Số ngày trễ</th>
+                    {% if is_staff %}<th>Thao tác</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for o in overdue_rows %}
+                <tr>
+                    <td><b>{{ o.loan_id }}</b></td>
+                    <td>{{ o.member_id }} - {{ o.member_name }}</td>
+                    <td>{{ o.copy_id }}</td>
+                    <td>{{ o.title }}</td>
+                    <td>{{ o.due_date }}</td>
+                    <td><span class="badge b-red">{{ o.days_overdue }} ngày</span></td>
+                    {% if is_staff %}
+                    <td>
+                        <form method="post" style="display:inline;">
+                            <input type="hidden" name="action" value="return">
+                            <input type="hidden" name="loan_id" value="{{ o.loan_id }}">
+                            <button type="submit" class="btn-sm btn-amber">Trả &amp; Tính phạt</button>
+                        </form>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 7 if is_staff else 6 }}">Không có phiếu quá hạn.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

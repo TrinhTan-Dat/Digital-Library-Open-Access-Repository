@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="two-col">
+    <div class="card">
+        <h2>Đăng nhập tài khoản hệ thống (NFR-02 - Bảng user_account)</h2>
+        <form method="post" class="form-grid" style="grid-template-columns: 1fr;">
+            <div>
+                <label>Tên đăng nhập (username) hoặc Mã thành viên (member_id) *</label>
+                <input type="text" name="username" required placeholder="VD: MEM0371 hoặc username trong user_account">
+            </div>
+            <div>
+                <label>Mật khẩu (Demo nhập '123456' hoặc đúng password_hash)</label>
+                <input type="password" name="password" placeholder="Nhập mật khẩu">
+            </div>
+            <div>
+                <button type="submit" class="btn-green">Đăng nhập</button>
+            </div>
+        </form>
+        <div class="hint">
+            Hệ thống kiểm tra trạng thái <code>account_status = 'Active'</code> từ bảng <code>user_account</code>. Thử nhập <code>MEM0008</code> (tài khoản bị <code>Revoked</code>) để kiểm chứng chặn đăng nhập.
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Chọn nhanh tài khoản mẫu theo 4 vai trò (NFR-03)</h2>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Vai trò</th><th>Mã TV</th><th>Họ tên</th><th>Quyền số</th><th>Chọn</th></tr>
+                </thead>
+                <tbody>
+                    {% for a in demo_accounts %}
+                    <tr>
+                        <td><span class="badge b-blue">{{ role_labels.get(a.member_role, a.member_role) }}</span></td>
+                        <td><code>{{ a.member_id }}</code></td>
+                        <td>{{ a.name }}</td>
+                        <td><span class="badge b-purple">{{ a.permission_level or '-' }}</span></td>
+                        <td>
+                            <a href="{{ url_for('switch_role', role_name=a.member_role) }}" class="btn btn-sm btn-green">Vào vai này</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

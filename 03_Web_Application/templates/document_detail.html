@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="margin-bottom:12px;">
+    <a href="{{ url_for('index') }}" class="btn btn-gray btn-sm">&larr; Quay lại danh mục tài liệu</a>
+</div>
+
+<div class="card">
+    <h2>
+        <span>Chi tiết tài liệu: {{ doc.document_id }} — {{ doc.title }}</span>
+        {% if is_staff %}
+        <form method="post" onsubmit="return confirm('Xác nhận xóa tài liệu {{ doc.document_id }}? (Nếu đã có bản sao/lịch sử mượn, MySQL sẽ tự động chặn)');">
+            <input type="hidden" name="action" value="delete_doc">
+            <button type="submit" class="btn-red btn-sm">Xóa tài liệu (FR-01)</button>
+        </form>
+        {% endif %}
+    </h2>
+    <form method="post" class="form-grid">
+        <input type="hidden" name="action" value="update_doc">
+        <div>
+            <label>Tiêu đề *</label>
+            <input type="text" name="title" required value="{{ doc.title }}" {{ 'disabled' if not is_staff else '' }}>
+        </div>
+        <div>
+            <label>Năm xuất bản *</label>
+            <input type="number" name="publication_year" required value="{{ doc.publication_year }}" {{ 'disabled' if not is_staff else '' }}>
+        </div>
+        <div>
+            <label>ISBN</label>
+            <input type="text" name="isbn" value="{{ doc.ISBN or '' }}" {{ 'disabled' if not is_staff else '' }}>
+        </div>
+        <div>
+            <label>Ngôn ngữ</label>
+            <input type="text" name="language" value="{{ doc.language }}" {{ 'disabled' if not is_staff else '' }}>
+        </div>
+        <div>
+            <label>Loại tài liệu *</label>
+            <select name="type" {{ 'disabled' if not is_staff else '' }}>
+                {% for t in ['BOOK', 'JOURNAL', 'THESIS', 'PROJECT', 'RESEARCH_PAPER', 'OTHER'] %}
+                    <option value="{{ t }}" {{ 'selected' if doc.type == t else '' }}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Nhà xuất bản</label>
+            <select name="publisher_id" {{ 'disabled' if not is_staff else '' }}>
+                <option value="">-- Không chọn --</option>
+                {% for p in publishers %}
+                    <option value="{{ p.publisher_id }}" {{ 'selected' if doc.publisher_id == p.publisher_id else '' }}>{{ p.publisher_id }} - {{ p.pub_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Nhân viên quản lý *</label>
+            <select name="employee_code" {{ 'disabled' if not is_staff else '' }}>
+                {% for s in staffs %}
+                    <option value="{{ s.employee_code }}" {{ 'selected' if doc.employee_code == s.employee_code else '' }}>{{ s.employee_code }} - {{ s.position }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>Mô tả</label>
+            <input type="text" name="description" value="{{ doc.description or '' }}" {{ 'disabled' if not is_staff else '' }}>
+        </div>
+        {% if is_staff %}
+        <div>
+            <button type="submit" class="btn-green">Lưu thay đổi (FR-01)</button>
+        </div>
+        {% endif %}
+    </form>
+</div>
+
+<div class="card">
+    <h2>Danh sách bản sao vật lý ({{ copies|length }} cuốn - FR-02)</h2>
+    {% if is_staff %}
+    <form method="post" class="row-flex" style="margin-bottom:12px;">
+        <input type="hidden" name="action" value="add_copy">
+        <div style="width:140px;">
+            <label>Số bản sao thêm</label>
+            <input type="number" name="quantity" min="1" max="50" value="1">
+        </div>
+        <div style="width:220px;">
+            <label>Tình trạng ban đầu</label>
+            <input type="text" name="condition" value="Mới">
+        </div>
+        <div>
+            <button type="submit" class="btn-green">+ Nhập thêm bản sao</button>
+        </div>
+    </form>
+    {% endif %}
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Mã bản sao</th>
+                    <th>Trạng thái</th>
+                    <th>Tình trạng</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in copies %}
+                <tr>
+                    <td><b>{{ c.copy_id }}</b></td>
+                    <td>
+                        {% if c.status == 'Available' %}
+                            <span class="badge b-green">Available</span>
+                        {% elif c.status == 'Borrowed' %}
+                            <span class="badge b-blue">Borrowed</span>
+                        {% else %}
+                            <span class="badge b-red">{{ c.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ c.condition or '-' }}</td>
+                    <td>
+                        <div class="row-flex" style="gap:6px;">
+                            {% if is_staff and c.status == 'Available' %}
+                                <a href="{{ url_for('loans', copy_id=c.copy_id) }}" class="btn btn-sm btn-green">Mượn cuốn này</a>
+                            {% endif %}
+                            {% if is_staff %}
+                                <form method="post" class="row-flex" style="gap:5px;">
+                                    <input type="hidden" name="action" value="update_copy">
+                                    <input type="hidden" name="copy_id" value="{{ c.copy_id }}">
+                                    <select name="status" style="width:125px; padding:4px 6px; font-size:12px;">
+                                        {% for st in ['Available', 'Borrowed', 'Lost', 'Damaged', 'Maintenance'] %}
+                                            <option value="{{ st }}" {{ 'selected' if c.status == st else '' }}>{{ st }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <input type="text" name="condition" value="{{ c.condition or '' }}" placeholder="Tình trạng" style="width:130px; padding:4px 6px; font-size:12px;">
+                                    <button type="submit" class="btn-sm">Lưu</button>
+                                </form>
+                                <form method="post" onsubmit="return confirm('Xóa bản sao {{ c.copy_id }}?');">
+                                    <input type="hidden" name="action" value="delete_copy">
+                                    <input type="hidden" name="copy_id" value="{{ c.copy_id }}">
+                                    <button type="submit" class="btn-sm btn-red">Xóa</button>
+                                </form>
+                            {% else %}
+                                -
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">Tài liệu này chưa có bản sao vật lý nào trong kho.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="two-col">
+    <div class="card">
+        <h2>Tác giả &amp; Thứ tự tác giả (FR-12, BR12, BR13)</h2>
+        {% if is_faculty_plus %}
+        <form method="post" class="form-grid" style="margin-bottom:10px;">
+            <input type="hidden" name="action" value="add_author">
+            <div>
+                <label>Mã tác giả *</label>
+                <input type="text" name="author_id" list="detail_authors" required placeholder="VD: AUT0001">
+                <datalist id="detail_authors">
+                    {% for a in all_authors %}
+                        <option value="{{ a.author_id }}">{{ a.author_name }}{{ ' (Nội bộ)' if a.person_id else ' (Ngoài trường)' }}</option>
+                    {% endfor %}
+                </datalist>
+            </div>
+            <div>
+                <label>Thứ tự (BR13 duy nhất) *</label>
+                <input type="number" name="author_order" required min="1" value="{{ doc_authors|length + 1 }}">
+            </div>
+            <div>
+                <button type="submit" class="btn-green">Gắn tác giả</button>
+            </div>
+        </form>
+        {% endif %}
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th>Thứ tự</th><th>Mã TG</th><th>Bút danh</th><th>Loại</th><th>Gỡ</th></tr>
+                </thead>
+                <tbody>
+                    {% for a in doc_authors %}
+                    <tr>
+                        <td><span class="badge b-blue">#{{ a.author_order }}</span></td>
+                        <td><b>{{ a.author_id }}</b></td>
+                        <td>{{ a.author_name }}</td>
+                        <td>
+                            {% if a.is_member %}
+                                <span class="badge b-purple">Thành viên trường (BR14)</span>
+                            {% elif a.person_id %}
+                                <span class="badge b-green">Có hồ sơ Person</span>
+                            {% else %}
+                                <span class="badge b-amber">Ngoài trường</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if is_faculty_plus %}
+                            <form method="post">
+                                <input type="hidden" name="action" value="remove_author">
+                                <input type="hidden" name="author_id" value="{{ a.author_id }}">
+                                <button type="submit" class="btn-sm btn-red">Gỡ</button>
+                            </form>
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">Chưa gắn tác giả nào.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="hint">
+            <b>Test BR13:</b> Thử gắn thêm 1 tác giả mới với <b>Thứ tự = 1</b> trùng với tác giả đã có &rarr; MySQL chặn bằng ràng buộc <code>UNIQUE(document_id, author_order)</code>.
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Thể loại &amp; Phiên bản số</h2>
+        {% if is_staff %}
+        <form method="post" class="row-flex" style="margin-bottom:10px;">
+            <input type="hidden" name="action" value="add_category">
+            <div style="flex:1;">
+                <label>Gắn thêm thể loại</label>
+                <select name="category_id">
+                    {% for c in all_categories %}
+                        <option value="{{ c.category_id }}">{{ c.category_id }} - {{ c.cate_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div><button type="submit" class="btn-green">Thêm</button></div>
+        </form>
+        {% endif %}
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+            {% for c in doc_categories %}
+                <div class="badge b-blue" style="display:inline-flex; align-items:center; gap:5px; padding:5px 10px; font-size:12.5px;">
+                    {{ c.cate_name }}
+                    {% if is_staff %}
+                    <form method="post" style="display:inline; margin-left:4px;">
+                        <input type="hidden" name="action" value="remove_category">
+                        <input type="hidden" name="category_id" value="{{ c.category_id }}">
+                        <button type="submit" style="background:none; color:#1e40af; padding:0 2px; font-weight:700;">&times;</button>
+                    </form>
+                    {% endif %}
+                </div>
+            {% else %}
+                <span class="meta">Chưa có thể loại nào.</span>
+            {% endfor %}
+        </div>
+
+        <h3 style="font-size:14px; color:#1e3a5f; margin-bottom:6px;">Phiên bản tài nguyên số ({{ doc_digitals|length }})</h3>
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Mã số</th><th>Định dạng</th><th>Dung lượng</th><th>Mức truy cập</th><th>Giấy phép</th></tr></thead>
+                <tbody>
+                    {% for dr in doc_digitals %}
+                    <tr>
+                        <td><b>{{ dr.digital_id }}</b></td>
+                        <td>{{ dr.file_format }}</td>
+                        <td>{{ dr.size or '-' }} MB</td>
+                        <td><span class="badge {{ 'b-green' if dr.access_level == 'OPEN' else ('b-amber' if dr.access_level == 'RESTRICTED' else 'b-red') }}">{{ dr.access_level }}</span></td>
+                        <td>{{ dr.license_name or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5">Chưa có bản tài liệu số.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
